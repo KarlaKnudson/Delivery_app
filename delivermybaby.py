@@ -254,7 +254,7 @@ def get_hospitals(n_clicks, zipcode, distance_max, w_close, w_csec, w_vbac, w_ni
         'City',
         'Distance',
         'Cesarean-section rate (%) - Lower is better',
-        'Vaginal Birth After Delivery rate (%) - Higher is better',
+        'Vaginal Birth After C-Section rate (%) - Higher is better',
         'NICU volume per year - Higher is better',
         'Health Professional Shortage Area Status'
     ]
