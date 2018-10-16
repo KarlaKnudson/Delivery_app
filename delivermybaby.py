@@ -187,13 +187,28 @@ app.layout = html.Div(
 def get_hospitals(n_clicks, zipcode, distance_max, w_close, w_csec, w_vbac, w_nicu):
     zipcode = int(zipcode)
     distance_max = int(distance_max)
+    w_close = float(w_close)
+    w_csec = float(w_csec)
+    w_vbac = float(w_vbac)
+    w_nicu = float(w_nicu)
+
     zipcode = zipcode_data[zipcode]
     origin = (zipcode[1], zipcode[2]) # (lat, lng)
-    results = {} #this will be a dictionary of all the hospitals and their associated data
+
+    # Normalized weights of all factors (sum = 1)
+    b1 = w_csec / (w_csec + w_vbac + w_nicu + w_close)
+    b2 = w_vbac / (w_csec + w_vbac + w_nicu + w_close)
+    b3 = w_nicu / (w_csec + w_vbac + w_nicu + w_close)
+    b4 = w_close / (w_csec + w_vbac + w_nicu + w_close)
+
+    results = {} # this will be a dictionary of all the hospitals and their associated data
     for hospital, values in hospital_data.items(): #key is the hospital; value is the information variables
         destination = (values['lat'], values['lng'])
         dist_to_hosp = distance(origin, destination)
         if dist_to_hosp <= distance_max:
+
+            # Copy the hospital values to results
+            results[hospital] = values.copy()
 
             # Z-score of the c-section parameter:
             d_csec = np.subtract(values['c-sec'], avg_csec)
@@ -207,25 +222,16 @@ def get_hospitals(n_clicks, zipcode, distance_max, w_close, w_csec, w_vbac, w_ni
             d_nicu = np.subtract(values['nicu'], avg_nicu)
             z_nicu = np.divide(d_nicu, sd_nicu)
 
-            # Normalized weights of all factors (sum = 1)
-            b1 = w_csec / (w_csec + w_vbac + w_nicu + w_close)
-            b2 = w_vbac / (w_csec + w_vbac + w_nicu + w_close)
-            b3 = w_nicu / (w_csec + w_vbac + w_nicu + w_close)
-            b4 = w_close / (w_csec + w_vbac + w_nicu + w_close)
-
             # Calculate hospital scores
-            values['h_score'] = b1 * (1 - z_csec) + b2 * z_vbac + b3 * z_nicu - b4 * dist_to_hosp
+            results[hospital]['h_score'] = b1 * (1 - z_csec) + b2 * z_vbac + b3 * z_nicu - b4 * dist_to_hosp
 
             # add distance to hospital to the dictionary
-            values['dist'] = '{0:.2f}'.format(dist_to_hosp) #format for 2 decimals
-            
-            if values['hpsa'] == 1:
-                values['hpsa'] = 'Alert: This is a registered Health Professional Shortage Area (HPSA).'
-            else:
-                values['hpsa'] = ''
-                
-            results[hospital] = values
+            results[hospital]['dist'] = '{0:.2f}'.format(dist_to_hosp) #format for 2 decimals
 
+            if values['hpsa'] == 1:
+                results[hospital]['hpsa'] = 'Alert: This is a registered Health Professional Shortage Area (HPSA).'
+            else:
+                results[hospital]['hpsa'] = ''
 
     sorted_keys = sorted(results.keys(), key=lambda y: (results[y]['h_score']), reverse=True)
 
@@ -241,8 +247,8 @@ def get_hospitals(n_clicks, zipcode, distance_max, w_close, w_csec, w_vbac, w_ni
             str(results[hospital]['nicu']),
             results[hospital]['hpsa']
         ])
- 	
- 	# Column names for the DataFrame   
+
+ 	# Column names for the DataFrame
     column_names = [
         'Hospital',
         'City',
